@@ -11,7 +11,7 @@ type Producto struct {
 	ID                 int       `bun:"id,pk,autoincrement"`
 	Nombre             string    `bun:"nombre"`
 	PrecioVenta        int       `bun:"precio_venta"`
-	PrecioBruto        int       `bun:"precio_bruto"`
+	PrecioCompra       int       `bun:"precio_compra"`
 	Disponible         bool      `bun:"disponible"`
 	UltimaVezIngresado time.Time `bun:"ultima_vez_ingresado"`
 	CreatedAt          time.Time `bun:"created_at"`

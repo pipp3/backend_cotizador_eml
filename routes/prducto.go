@@ -11,7 +11,7 @@ func RegisterProductoRoutes(router *gin.Engine, db *bun.DB) {
 	handler := handlers.NewProductoHandler(db)
 	productoRoutes := router.Group("/productos")
 	{
-		productoRoutes.POST("/", handler.CreateProducto)
+		productoRoutes.POST("", handler.CreateProducto)
 		productoRoutes.GET("", handler.GetAllProductos)
 		productoRoutes.DELETE("/:id", handler.DeleteProducto)
 		productoRoutes.PATCH("/:id", handler.UpdateProducto)

@@ -23,7 +23,7 @@ func (h *ProductoHandler) CreateProducto(c *gin.Context) {
 	var input struct {
 		Nombre             string `json:"nombre"`
 		PrecioVenta        int    `json:"precio_venta"`
-		PrecioBruto        int    `json:"precio_bruto"`
+		PrecioCompra       int    `json:"precio_compra"`
 		UltimaVezIngresado string `json:"ultima_vez_ingresado"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -39,7 +39,7 @@ func (h *ProductoHandler) CreateProducto(c *gin.Context) {
 	nuevoProducto := models.Producto{
 		Nombre:             input.Nombre,
 		PrecioVenta:        input.PrecioVenta,
-		PrecioBruto:        input.PrecioBruto,
+		PrecioCompra:       input.PrecioCompra,
 		UltimaVezIngresado: fecha,
 		Disponible:         true,
 		CreatedAt:          time.Now(),
@@ -76,7 +76,7 @@ func (h *ProductoHandler) GetAllProductos(c *gin.Context) {
 			"id":                   producto.ID,
 			"nombre":               producto.Nombre,
 			"precio_venta":         producto.PrecioVenta,
-			"precio_bruto":         producto.PrecioBruto,
+			"precio_compra":        producto.PrecioCompra,
 			"disponible":           producto.Disponible,
 			"ultima_vez_ingresado": producto.UltimaVezIngresado.Format("02/01/2006"),
 			"created_at":           producto.CreatedAt.Format("02/01/2006"),
@@ -143,7 +143,7 @@ func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
 	var input struct {
 		Nombre             *string `json:"nombre"`
 		PrecioVenta        *int    `json:"precio_venta"`
-		PrecioBruto        *int    `json:"precio_bruto"`
+		PrecioCompra       *int    `json:"precio_compra"`
 		UltimaVezIngresado *string `json:"ultima_vez_ingresado"`
 		Disponible         *bool   `json:"disponible"`
 	}
@@ -160,8 +160,8 @@ func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
 	if input.PrecioVenta != nil {
 		producto.PrecioVenta = *input.PrecioVenta
 	}
-	if input.PrecioBruto != nil {
-		producto.PrecioBruto = *input.PrecioBruto
+	if input.PrecioCompra != nil {
+		producto.PrecioCompra = *input.PrecioCompra
 	}
 	if input.UltimaVezIngresado != nil {
 		fecha, err := time.Parse("02/01/2006", *input.UltimaVezIngresado)
