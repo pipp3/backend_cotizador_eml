@@ -26,11 +26,10 @@ func main() {
 
 	frontendUrl := os.Getenv("FRONTEND_URL")
 
-	// Configurar CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{frontendUrl},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
@@ -40,7 +39,7 @@ func main() {
 	routes.RegisterProductoRoutes(r, db)
 
 	// Iniciar el servidor
-	if err := r.Run(":4000"); err != nil {
+	if err := r.Run(":8000"); err != nil {
 		log.Fatal("Error al iniciar el servidor:", err)
 	}
 }

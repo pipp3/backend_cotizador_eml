@@ -87,7 +87,7 @@ func (h *ProductoHandler) GetAllProductos(c *gin.Context) {
 
 	// Devolver los productos con fechas formateadas
 	c.JSON(http.StatusOK, gin.H{
-		"productos": productosConFechasFormateadas,
+		"data": productosConFechasFormateadas,
 	})
 }
 
@@ -186,7 +186,7 @@ func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
 
 	// Responder con el producto actualizado
 	c.JSON(http.StatusOK, gin.H{
-		"producto": producto,
+		"data": producto,
 	})
 }
 
@@ -207,6 +207,6 @@ func (h *ProductoHandler) GetProductoById(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"producto": producto,
+		"data": producto,
 	})
 }
