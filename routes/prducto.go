@@ -14,7 +14,7 @@ func RegisterProductoRoutes(router *gin.Engine, db *bun.DB) {
 		productoRoutes.POST("", handler.CreateProducto)
 		productoRoutes.GET("", handler.GetAllProductos)
 		productoRoutes.DELETE("/:id", handler.DeleteProducto)
-		productoRoutes.PATCH("/:id", handler.UpdateProducto)
+		productoRoutes.PUT("/:id", handler.UpdateProducto)
 		productoRoutes.GET("/:id", handler.GetProductoById)
 	}
 }

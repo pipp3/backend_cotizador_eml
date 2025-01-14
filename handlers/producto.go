@@ -63,7 +63,7 @@ func (h *ProductoHandler) GetAllProductos(c *gin.Context) {
 	var productos []models.Producto
 
 	// Consulta para obtener todos los productos
-	err := h.db.NewSelect().Model(&productos).Scan(c)
+	err := h.db.NewSelect().Model(&productos).Order("nombre ASC").Scan(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudieron obtener los productos"})
 		return
@@ -123,15 +123,16 @@ func (h *ProductoHandler) DeleteProducto(c *gin.Context) {
 }
 
 func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
-	productID := c.Param("id") // El id que se pasa en la URL
+	productID := c.Param("id") // El ID que se pasa en la URL
 
-	// Convertir el id de la URL a un entero
+	// Convertir el ID de la URL a un entero
 	productIDInt, err := strconv.Atoi(productID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
 	}
 
+	// Buscar el producto en la base de datos
 	var producto models.Producto
 	err = h.db.NewSelect().Model(&producto).Where("id = ?", productIDInt).Scan(c)
 	if err != nil {
@@ -141,41 +142,31 @@ func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
 
 	// Estructura para capturar los datos que se envían en el body
 	var input struct {
-		Nombre             *string `json:"nombre"`
-		PrecioVenta        *int    `json:"precio_venta"`
-		PrecioCompra       *int    `json:"precio_compra"`
-		UltimaVezIngresado *string `json:"ultima_vez_ingresado"`
-		Disponible         *bool   `json:"disponible"`
+		Nombre             string `json:"nombre" binding:"required"`
+		PrecioVenta        int    `json:"precio_venta" binding:"required"`
+		PrecioCompra       int    `json:"precio_compra" binding:"required"`
+		UltimaVezIngresado string `json:"ultima_vez_ingresado" binding:"required"`
+		Disponible         bool   `json:"disponible" binding:"required"`
 	}
 
+	// Verificar que todos los datos requeridos estén presentes
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Si se proporcionan valores nuevos, actualizarlos
-	if input.Nombre != nil {
-		producto.Nombre = *input.Nombre
+	// Actualizar los campos del producto con los datos enviados
+	producto.Nombre = input.Nombre
+	producto.PrecioVenta = input.PrecioVenta
+	producto.PrecioCompra = input.PrecioCompra
+	fecha, err := time.Parse("02/01/2006", input.UltimaVezIngresado)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de fecha inválido"})
+		return
 	}
-	if input.PrecioVenta != nil {
-		producto.PrecioVenta = *input.PrecioVenta
-	}
-	if input.PrecioCompra != nil {
-		producto.PrecioCompra = *input.PrecioCompra
-	}
-	if input.UltimaVezIngresado != nil {
-		fecha, err := time.Parse("02/01/2006", *input.UltimaVezIngresado)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de fecha inválido"})
-			return
-		}
-		producto.UltimaVezIngresado = fecha
-	}
-	if input.Disponible != nil {
-		producto.Disponible = *input.Disponible
-	}
-	// Asignar las fechas de actualización
-	producto.UpdatedAt = time.Now()
+	producto.UltimaVezIngresado = fecha
+	producto.Disponible = input.Disponible
+	producto.UpdatedAt = time.Now() // Fecha de actualización
 
 	// Actualizar el producto en la base de datos
 	_, err = h.db.NewUpdate().Model(&producto).Where("id = ?", productIDInt).Exec(c)
@@ -206,7 +197,19 @@ func (h *ProductoHandler) GetProductoById(c *gin.Context) {
 		return
 	}
 
+	// Formatear las fechas del producto
+	productoFormateado := map[string]interface{}{
+		"id":                   producto.ID,
+		"nombre":               producto.Nombre,
+		"precio_venta":         producto.PrecioVenta,
+		"precio_compra":        producto.PrecioCompra,
+		"disponible":           producto.Disponible,
+		"ultima_vez_ingresado": producto.UltimaVezIngresado.Format("02/01/2006"),
+		"created_at":           producto.CreatedAt.Format("02/01/2006"),
+		"updated_at":           producto.UpdatedAt.Format("02/01/2006"),
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"data": producto,
+		"data": productoFormateado,
 	})
 }
