@@ -146,12 +146,23 @@ func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
 		PrecioVenta        int    `json:"precio_venta" binding:"required"`
 		PrecioCompra       int    `json:"precio_compra" binding:"required"`
 		UltimaVezIngresado string `json:"ultima_vez_ingresado" binding:"required"`
-		Disponible         bool   `json:"disponible" binding:"required"`
+		Disponible         string `json:"disponible" binding:"required"`
 	}
 
 	// Verificar que todos los datos requeridos estén presentes
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Transformar el campo "Disponible" de string a booleano
+	var disponibleBool bool
+	if input.Disponible == "true" {
+		disponibleBool = true
+	} else if input.Disponible == "false" {
+		disponibleBool = false
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El campo 'disponible' debe ser 'true' o 'false'"})
 		return
 	}
 
@@ -165,7 +176,7 @@ func (h *ProductoHandler) UpdateProducto(c *gin.Context) {
 		return
 	}
 	producto.UltimaVezIngresado = fecha
-	producto.Disponible = input.Disponible
+	producto.Disponible = disponibleBool
 	producto.UpdatedAt = time.Now() // Fecha de actualización
 
 	// Actualizar el producto en la base de datos
