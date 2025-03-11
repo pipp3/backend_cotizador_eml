@@ -16,5 +16,6 @@ func AuthRoutes(router *gin.Engine, db *bun.DB) {
 		authRoutes.POST("/resend-verification-email", handler.ResendVerificationEmail)
 		authRoutes.POST("/login", handler.Login)
 		authRoutes.POST("/refresh-token", handler.RefreshToken)
+		authRoutes.GET("/logout", handler.Logout)
 	}
 }

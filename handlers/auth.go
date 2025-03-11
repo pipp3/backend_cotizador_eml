@@ -283,11 +283,13 @@ func (h *AuthHandler) ResendVerificationEmail(c *gin.Context) {
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
+	// Estructura para recibir credenciales
 	var input struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
 
+	// Validar JSON de entrada
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -296,13 +298,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Buscar usuario en la base de datos
 	var usuario models.Usuario
 	err := h.db.NewSelect().
 		Model(&usuario).
 		Where("email = ?", input.Email).
 		Scan(c)
 
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(usuario.Password), []byte(input.Password)) != nil {
+	// Hash falso en caso de usuario inexistente (previene ataques de timing)
+	fakeHash := "$2a$12$Q.k6nG1Op6J9cOa5bUy1LeYtYaN.RJt7EZcVYvLvj1nPd8AYgPdrW" // Hash de "fakepassword"
+	storedHash := usuario.Password
+	if storedHash == "" {
+		storedHash = fakeHash
+	}
+
+	// Comparar contraseña ingresada con la almacenada
+	if err != nil || bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(input.Password)) != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"error":   "Credenciales inválidas",
@@ -310,6 +321,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Verificar si la cuenta está activada
 	if !usuario.Verificado {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
@@ -318,6 +330,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Generar tokens
 	accessToken, refreshToken, err := h.GenerateTokens(usuario.ID, usuario.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -327,13 +340,30 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Configurar cookies seguras
+	// Access Token (expira en 1 hora)
+	c.SetCookie("access_token", accessToken, 3600, "/", "localhost", false, true)
+
+	// Refresh Token (expira en 7 días)
+	c.SetCookie("refresh_token", refreshToken, 604800, "/", "localhost", false, true)
+
+	// Respuesta sin incluir tokens directamente en el cuerpo
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "Inicio de sesión exitoso",
+		"expires_in": 3600, // Tiempo de expiración del access_token en segundos
+	})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+
+	//Eliminar tokens de cookies
+	c.SetCookie("access_token", "", -1, "/", "localhost", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "localhost", false, true)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
-			"expires_in":    3600,
-		},
+		"message": "Sesión cerrada exitosamente",
 	})
 }
 
