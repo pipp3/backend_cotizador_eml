@@ -46,6 +46,12 @@ func runMigrations(db *bun.DB) error {
 	// Aquí especificamos los modelos que queremos migrar (crear las tablas)
 	// Se ejecuta solo si las tablas no existen
 	_, err := db.NewCreateTable().Model((*models.Producto)(nil)).IfNotExists().Exec(context.Background())
+
+	if err != nil {
+		return err
+	}
+
+	_, err = db.NewCreateTable().Model((*models.Usuario)(nil)).IfNotExists().Exec(context.Background())
 	if err != nil {
 		return err
 	}

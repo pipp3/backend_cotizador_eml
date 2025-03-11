@@ -37,6 +37,7 @@ func main() {
 
 	// Registrar rutas
 	routes.RegisterProductoRoutes(r, db)
+	routes.AuthRoutes(r, db)
 
 	// Iniciar el servidor
 	if err := r.Run(":8000"); err != nil {
