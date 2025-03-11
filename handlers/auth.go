@@ -349,9 +349,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Respuesta sin incluir tokens directamente en el cuerpo
 	c.JSON(http.StatusOK, gin.H{
-		"success":    true,
-		"message":    "Inicio de sesión exitoso",
-		"expires_in": 3600, // Tiempo de expiración del access_token en segundos
+		"success":      true,
+		"message":      "Inicio de sesión exitoso",
+		"access_token": accessToken,
+		"expires_in":   3600, // Tiempo de expiración del access_token en segundos
 	})
 }
 
