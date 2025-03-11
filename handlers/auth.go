@@ -336,3 +336,76 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		},
 	})
 }
+
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	var input struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Token de refresco requerido: " + err.Error(),
+		})
+		return
+	}
+
+	claims, err := utils.ParseJWT(input.RefreshToken, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Token inválido o expirado",
+		})
+		return
+	}
+
+	if tokenType, ok := claims["type"].(string); !ok || tokenType != "refresh" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Tipo de token inválido",
+		})
+		return
+	}
+
+	userID, ok := claims["sub"].(float64)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "ID de usuario inválido",
+		})
+		return
+	}
+
+	// Obtener usuario
+	var usuario models.Usuario
+	err = h.db.NewSelect().
+		Model(&usuario).
+		Where("id = ?", int(userID)).
+		Scan(c)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado",
+		})
+		return
+	}
+
+	accessToken, refreshToken, err := h.GenerateTokens(usuario.ID, usuario.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error generando tokens",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+			"expires_in":    3600,
+		},
+	})
+}
