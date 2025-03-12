@@ -18,12 +18,13 @@ type AuthHandler struct {
 	db *bun.DB
 }
 
-func (h *AuthHandler) GenerateTokens(userID int, email string) (string, string, error) {
+func (h *AuthHandler) GenerateTokens(userID int, email string, rol string) (string, string, error) {
 
 	// 2. Generar access token (vida más corta)
 	accessToken, err := utils.GenerateJWT(
 		userID, // Incluir userID
 		email,
+		rol,
 		os.Getenv("JWT_SECRET"),
 		15*time.Minute, // 15 minutos (tiempo recomendado)
 		"access",
@@ -36,6 +37,7 @@ func (h *AuthHandler) GenerateTokens(userID int, email string) (string, string, 
 	refreshToken, err := utils.GenerateJWT(
 		userID,
 		email,
+		rol,
 		os.Getenv("JWT_SECRET"),
 		7*24*time.Hour, // 7 días (tiempo recomendado)
 		"refresh",
@@ -106,6 +108,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	verificationToken, err := utils.GenerateJWT(
 		nuevoUsuario.ID,
 		nuevoUsuario.Email,
+		nuevoUsuario.Rol,
 		os.Getenv("JWT_SECRET"), // Debes tener configurado el secreto
 		24*time.Hour,
 		"verification",
@@ -254,6 +257,7 @@ func (h *AuthHandler) ResendVerificationEmail(c *gin.Context) {
 	verificationToken, err := utils.GenerateJWT(
 		usuario.ID,
 		usuario.Email,
+		usuario.Rol,
 		os.Getenv("JWT_SECRET"),
 		24*time.Hour,
 		"verification",
@@ -331,7 +335,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Generar tokens
-	accessToken, refreshToken, err := h.GenerateTokens(usuario.ID, usuario.Email)
+	accessToken, refreshToken, err := h.GenerateTokens(usuario.ID, usuario.Email, usuario.Rol)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -422,7 +426,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := h.GenerateTokens(usuario.ID, usuario.Email)
+	accessToken, refreshToken, err := h.GenerateTokens(usuario.ID, usuario.Email, usuario.Rol)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

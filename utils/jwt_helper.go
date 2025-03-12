@@ -7,10 +7,11 @@ import (
 )
 
 // Genera token de verificación (puedes reutilizarlo para otros tipos de tokens)
-func GenerateJWT(userID int, email, secret string, expiresIn time.Duration, tokenType string) (string, error) {
+func GenerateJWT(userID int, email, rol, secret string, expiresIn time.Duration, tokenType string) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":   userID,
 		"email": email,
+		"rol":   rol,
 		"exp":   time.Now().Add(expiresIn).Unix(),
 		"type":  tokenType,
 	}

@@ -14,6 +14,7 @@ func UserRoutes(router *gin.Engine, db *bun.DB) {
 	userRoutes.Use(utils.AuthMiddleware())
 	{
 		userRoutes.GET("/me", handler.Me)
-
+		userRoutes.POST("/create-user", handler.CreateUser)
+		userRoutes.PATCH("/update-user/:id", handler.UpdateUser)
 	}
 }

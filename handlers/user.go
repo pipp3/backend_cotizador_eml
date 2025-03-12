@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/uptrace/bun"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
@@ -46,4 +47,183 @@ func (h *UserHandler) Me(c *gin.Context) {
 		},
 	})
 
+}
+
+func (h *UserHandler) CreateUser(c *gin.Context) {
+	userRole, exists := c.Get("rol")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Acceso denegado: Se requieren privilegios de administrador",
+		})
+		c.Abort()
+		return
+	}
+	var input struct {
+		Nombre   string `json:"nombre"`
+		Apellido string `json:"apellido"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Ciudad   string `json:"ciudad"`
+		Celular  string `json:"celular"`
+		Rol      string `json:"rol"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"succes": false,
+			"error":  "Datos de registro invalidos: " + err.Error(),
+		})
+		return
+
+	}
+	// Verificar si ya existe un usuario con el mismo email
+	existingUser := new(models.Usuario)
+	err := h.db.NewSelect().Model(existingUser).Where("email = ?", input.Email).Scan(c)
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"success": false,
+			"error":   "El email ya está registrado",
+		})
+		return
+	}
+
+	// Encriptar la contraseña
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al encriptar la contraseña",
+		})
+		return
+	}
+
+	// Crear nuevo usuario con el email ya verificado
+	newUser := models.Usuario{
+		Nombre:     input.Nombre,
+		Apellido:   input.Apellido,
+		Email:      input.Email,
+		Password:   string(hashedPassword),
+		Ciudad:     input.Ciudad,
+		Celular:    input.Celular,
+		Rol:        input.Rol,
+		Verificado: true, // Email ya verificado
+	}
+
+	// Insertar usuario en la base de datos
+	_, err = h.db.NewInsert().Model(&newUser).Exec(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al crear el usuario",
+		})
+		return
+	}
+
+	// Responder con éxito
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Usuario creado exitosamente",
+	})
+
+}
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	// Verificar si el usuario autenticado tiene rol "admin"
+	userRole, exists := c.Get("rol")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Acceso denegado: se requiere rol de admin",
+		})
+		c.Abort()
+		return
+	}
+
+	// Obtener el ID del usuario a modificar desde los parámetros
+	userID := c.Param("id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Se requiere un ID de usuario",
+		})
+		return
+	}
+
+	// Definir la estructura de entrada
+	var input struct {
+		Nombre   *string `json:"nombre"`
+		Apellido *string `json:"apellido"`
+		Email    *string `json:"email"`
+		Password *string `json:"password"`
+		Ciudad   *string `json:"ciudad"`
+		Celular  *string `json:"celular"`
+		Rol      *string `json:"rol"` // Comentado temporalmente
+	}
+
+	// Validar el JSON de entrada
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Datos de actualización inválidos: " + err.Error(),
+		})
+		return
+	}
+
+	// Buscar al usuario en la base de datos
+	user := new(models.Usuario)
+	err := h.db.NewSelect().Model(user).Where("id = ?", userID).Scan(c)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado",
+		})
+		return
+	}
+
+	// Actualizar solo los campos que se enviaron en la solicitud
+	if input.Nombre != nil {
+		user.Nombre = *input.Nombre
+	}
+	if input.Apellido != nil {
+		user.Apellido = *input.Apellido
+	}
+	if input.Email != nil {
+		user.Email = *input.Email
+	}
+	if input.Password != nil {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Error al encriptar la contraseña",
+			})
+			return
+		}
+		user.Password = string(hashedPassword)
+	}
+	if input.Ciudad != nil {
+		user.Ciudad = *input.Ciudad
+	}
+	if input.Celular != nil {
+		user.Celular = *input.Celular
+	}
+
+	if input.Rol != nil {
+		user.Rol = *input.Rol
+	}
+
+	// Guardar cambios en la base de datos
+	_, err = h.db.NewUpdate().Model(user).Where("id = ?", userID).Exec(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al actualizar el usuario",
+		})
+		return
+	}
+
+	// Responder con éxito
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Usuario actualizado correctamente",
+	})
 }

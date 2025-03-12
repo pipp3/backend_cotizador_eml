@@ -54,7 +54,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Extraer los datos del usuario
 		userID, userOk := claims["sub"].(float64)
 		email, emailOk := claims["email"].(string)
-		if !userOk || !emailOk {
+		rol, rolOk := claims["rol"].(string)
+		if !userOk || !emailOk || !rolOk {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Token inválido o no se encontro el usuario"})
 			c.Abort()
 			return
@@ -63,6 +64,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Agregar los datos del usuario al contexto
 		c.Set("userID", int(userID))
 		c.Set("email", email)
+		c.Set("rol", rol)
 
 		c.Next()
 	}
