@@ -15,7 +15,7 @@ type Usuario struct {
 	Password      string    `bun:"password"`
 	Rol           string    `bun:"rol,default:'cliente'"`
 	Ciudad        string    `bun:"ciudad"`
-	Celular       string    `bun:"telefono"`
+	Celular       string    `bun:"celular"`
 	Verificado    bool      `bun:"verificado,default:false"`
 	CreatedAt     time.Time `bun:"created_at"`
 	UpdatedAt     time.Time `bun:"updated_at"`

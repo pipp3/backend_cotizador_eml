@@ -4,6 +4,8 @@ import (
 	"cotizador-productos-eml/models"
 	"net/http"
 
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/uptrace/bun"
 	"golang.org/x/crypto/bcrypt"
@@ -225,5 +227,137 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Usuario actualizado correctamente",
+	})
+}
+
+func (h *UserHandler) GetAllUsers(c *gin.Context) {
+	userRole, exists := c.Get("rol")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Acceso denegado: Se requieren privilegios de administrador",
+		})
+		c.Abort()
+		return
+	}
+	var usuarios []struct {
+		ID       uint   `json:"id"`
+		Email    string `json:"email"`
+		Nombre   string `json:"nombre"`
+		Apellido string `json:"apellido"`
+	}
+	err := h.db.NewSelect().
+		Model((*models.Usuario)(nil)).
+		Column("id", "email", "nombre", "apellido").
+		Scan(c, &usuarios)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al obtener los usuarios",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    usuarios,
+	})
+}
+
+func (h *UserHandler) GetUserByID(c *gin.Context) {
+	userRole, exists := c.Get("rol")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Acceso denegado: Se requieren privilegios de administrador",
+		})
+		c.Abort()
+		return
+	}
+	userID := c.Param("id")
+
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Se requiere un ID de usuario",
+		})
+		return
+	}
+	// Convertir userID a uint
+	id, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "ID de usuario inválido",
+		})
+		return
+	}
+	var usuario struct {
+		ID         uint   `json:"id"`
+		Email      string `json:"email"`
+		Nombre     string `json:"nombre"`
+		Apellido   string `json:"apellido"`
+		Ciudad     string `json:"ciudad"`
+		Celular    string `json:"celular"`
+		Rol        string `json:"rol"`
+		Verificado bool   `json:"verificado"`
+	}
+	err = h.db.NewSelect().
+		Model((*models.Usuario)(nil)).
+		Column("id", "email", "nombre", "apellido", "ciudad", "celular", "rol", "verificado").
+		Where("id = ?", id).
+		Scan(c, &usuario)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al obtener el usuario: " + err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    usuario,
+	})
+}
+
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	userRole, exists := c.Get("rol")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Acceso denegado: Se requieren privilegios de administrador",
+		})
+		c.Abort()
+		return
+	}
+	userID := c.Param("id")
+
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Se requiere un ID de usuario",
+		})
+		return
+	}
+	// Convertir userID a uint
+	id, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "ID de usuario inválido",
+		})
+		return
+	}
+
+	_, err = h.db.NewDelete().Model((*models.Usuario)(nil)).Where("id = ?", id).Exec(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al eliminar el usuario: " + err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Usuario eliminado correctamente",
 	})
 }
