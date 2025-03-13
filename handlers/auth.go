@@ -444,3 +444,160 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		},
 	})
 }
+
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var input struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Email requerido: " + err.Error(),
+		})
+		return
+	}
+
+	// Verificar si el usuario existe
+	var usuario models.Usuario
+	err := h.db.NewSelect().
+		Model(&usuario).
+		Where("email = ?", input.Email).
+		Scan(c)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado",
+		})
+		return
+	}
+
+	// Generar token de cambio de contraseña
+	resetToken, err := utils.GenerateJWT(
+		usuario.ID,
+		usuario.Email,
+		usuario.Rol,
+		os.Getenv("JWT_SECRET"),
+		24*time.Hour,
+		"reset_password",
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error generando token de reseteo",
+		})
+		return
+	}
+
+	// Enviar email
+	if err := utils.SendPasswordResetEmail(usuario.Email, resetToken); err != nil {
+		log.Printf("Error enviando email de reseteo: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al enviar email de reseteo",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Email de reseteo enviado exitosamente",
+	})
+}
+
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Token de reseteo requerido",
+		})
+		return
+	}
+
+	var input struct {
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Token y contraseña requeridos: " + err.Error(),
+		})
+		return
+	}
+
+	// Verificar y parsear el token
+	claims, err := utils.ParseJWT(token, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Token inválido o expirado",
+		})
+		return
+	}
+
+	if tokenType, ok := claims["type"].(string); !ok || tokenType != "reset_password" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Tipo de token inválido",
+		})
+		return
+	}
+
+	userID, ok := claims["sub"].(float64)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "ID de usuario inválido",
+		})
+		return
+	}
+
+	// Obtener usuario
+	var usuario models.Usuario
+	err = h.db.NewSelect().
+		Model(&usuario).
+		Where("id = ?", int(userID)).
+		Scan(c)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado",
+		})
+		return
+	}
+
+	// Encriptar la nueva contraseña
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al encriptar la contraseña",
+		})
+		return
+	}
+
+	// Actualizar la contraseña
+	result, err := h.db.NewUpdate().
+		Model((*models.Usuario)(nil)).
+		Set("password = ?", string(hash)).
+		Where("id = ?", usuario.ID).
+		Exec(c)
+
+	rowsAffected, _ := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado o error al actualizar la contraseña",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Contraseña actualizada exitosamente",
+	})
+
+}

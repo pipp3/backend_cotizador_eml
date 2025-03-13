@@ -17,5 +17,7 @@ func AuthRoutes(router *gin.Engine, db *bun.DB) {
 		authRoutes.POST("/login", handler.Login)
 		authRoutes.POST("/refresh-token", handler.RefreshToken)
 		authRoutes.GET("/logout", handler.Logout)
+		authRoutes.POST("/forgot-password", handler.ForgotPassword)
+		authRoutes.POST("/reset-password", handler.ResetPassword)
 	}
 }
