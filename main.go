@@ -16,7 +16,7 @@ func main() {
 
 	// Cargar el archivo .env
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error al cargar el archivo .env ", err)
+		log.Println("Error al cargar el archivo .env ", err)
 	}
 
 	db := db.ConnectDB()
