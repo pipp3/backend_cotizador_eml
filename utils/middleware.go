@@ -69,3 +69,25 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RoleMiddleware es un middleware que verifica si el usuario tiene el rol requerido
+func RoleMiddleware(requiredRole string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Obtener el rol del usuario del contexto (establecido por AuthMiddleware)
+		rol, exists := c.Get("rol")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "No se encontró información de rol"})
+			c.Abort()
+			return
+		}
+
+		// Verificar si el rol del usuario coincide con el rol requerido
+		if rol != requiredRole {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "No tienes permisos para acceder a este recurso"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}

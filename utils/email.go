@@ -1,25 +1,74 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
-
-	"github.com/resend/resend-go/v2"
 )
 
-func SendVerificationEmail(to, token string) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
+type EmailRequest struct {
+	Sender      map[string]string   `json:"sender"`
+	To          []map[string]string `json:"to"`
+	Subject     string              `json:"subject"`
+	HTMLContent string              `json:"htmlContent"`
+}
+
+// sendEmail es una función genérica para enviar correos con Brevo
+func sendEmail(to, subject, htmlContent string) error {
+	apiKey := os.Getenv("BREVO_API_KEY")
 	if apiKey == "" {
-		return fmt.Errorf("RESEND_API_KEY no está configurada")
+		return fmt.Errorf("BREVO_API_KEY no está configurada")
 	}
+
+	email := EmailRequest{
+		Sender: map[string]string{
+			"name":  "Cotizador Productos EML",
+			"email": "pipe12.fm@gmail.com", // Usa un correo verificado en Brevo
+		},
+		To: []map[string]string{
+			{"email": to, "name": "Usuario"},
+		},
+		Subject:     subject,
+		HTMLContent: htmlContent,
+	}
+
+	data, err := json.Marshal(email)
+	if err != nil {
+		return fmt.Errorf("error al serializar el correo: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://api.brevo.com/v3/smtp/email", bytes.NewBuffer(data))
+	if err != nil {
+		return fmt.Errorf("error creando la solicitud: %w", err)
+	}
+	req.Header.Set("api-key", apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error enviando email: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("error en la respuesta de Brevo: %s", resp.Status)
+	}
+
+	fmt.Println("Email enviado con éxito:", resp.Status)
+	return nil
+}
+
+// SendVerificationEmail envía un email de verificación de cuenta
+func SendVerificationEmail(to, token string) error {
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if to == "" || token == "" {
 		return fmt.Errorf("parámetros inválidos: email o token vacío")
 	}
-	verifyURL := fmt.Sprintf("%s/verify?token=%s", strings.TrimSuffix(frontendURL, "/"), token)
-
-	client := resend.NewClient(apiKey)
+	verifyURL := fmt.Sprintf("%s/confirmar-cuenta?token=%s", strings.TrimSuffix(frontendURL, "/"), token)
 
 	htmlContent := fmt.Sprintf(`
 	<!DOCTYPE html>
@@ -33,35 +82,18 @@ func SendVerificationEmail(to, token string) error {
 		<p>Si no solicitaste este registro, ignora este mensaje.</p>
 	</body>
 	</html>
-`, verifyURL)
+	`, verifyURL)
 
-	params := &resend.SendEmailRequest{
-		From:    "Cotizador Productos EML <onboarding@resend.dev>",
-		To:      []string{to},
-		Subject: "Verifica tu cuenta",
-		Html:    htmlContent,
-		Text:    fmt.Sprintf("Verifica tu cuenta visitando este enlace: %s", verifyURL),
-	}
-	sent, err := client.Emails.Send(params)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(sent.Id)
-	return nil
+	return sendEmail(to, "Verifica tu cuenta", htmlContent)
 }
 
+// SendPasswordResetEmail envía un email para restablecer la contraseña
 func SendPasswordResetEmail(to, token string) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
-	if apiKey == "" {
-		return fmt.Errorf("RESEND_API_KEY no está configurada")
-	}
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if to == "" || token == "" {
 		return fmt.Errorf("parámetros inválidos: email o token vacío")
 	}
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", strings.TrimSuffix(frontendURL, "/"), token)
-
-	client := resend.NewClient(apiKey)
 
 	htmlContent := fmt.Sprintf(`
 	<!DOCTYPE html>
@@ -75,19 +107,7 @@ func SendPasswordResetEmail(to, token string) error {
 		<p>Si no solicitaste este cambio, ignora este mensaje.</p>
 	</body>
 	</html>
-`, resetURL)
+	`, resetURL)
 
-	params := &resend.SendEmailRequest{
-		From:    "Cotizador Productos EML <onboarding@resend.dev>",
-		To:      []string{to},
-		Subject: "Restablece tu contraseña",
-		Html:    htmlContent,
-		Text:    fmt.Sprintf("Para restablecer tu contraseña, visita este enlace: %s", resetURL),
-	}
-	sent, err := client.Emails.Send(params)
-	if err != nil {
-		return fmt.Errorf("error enviando email de recuperación: %w", err)
-	}
-	fmt.Println(sent.Id)
-	return nil
+	return sendEmail(to, "Restablece tu contraseña", htmlContent)
 }

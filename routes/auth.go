@@ -19,5 +19,6 @@ func AuthRoutes(router *gin.Engine, db *bun.DB) {
 		authRoutes.GET("/logout", handler.Logout)
 		authRoutes.POST("/forgot-password", handler.ForgotPassword)
 		authRoutes.POST("/reset-password", handler.ResetPassword)
+		authRoutes.GET("/verify", handler.VerifyAuth)
 	}
 }

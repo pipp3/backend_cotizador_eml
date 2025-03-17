@@ -601,3 +601,79 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	})
 
 }
+
+func (h *AuthHandler) VerifyAuth(c *gin.Context) {
+	accessToken, err := c.Cookie("access_token")
+	if err != nil || accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "No autenticado",
+		})
+		return
+	}
+	// Verificar y parsear el token
+	claims, err := utils.ParseJWT(accessToken, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Token inválido o expirado",
+		})
+		return
+	}
+
+	// Extraer información del usuario del token
+	userID, ok := claims["sub"].(float64)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Token inválido (ID de usuario no encontrado)",
+		})
+		return
+	}
+
+	email, ok := claims["email"].(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Token inválido (email no encontrado)",
+		})
+		return
+	}
+
+	rol, ok := claims["rol"].(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Token inválido (rol no encontrado)",
+		})
+		return
+	}
+
+	// Opcional: verificar que el usuario sigue existiendo en la base de datos
+	var usuario models.Usuario
+	err = h.db.NewSelect().
+		Model(&usuario).
+		Where("id = ?", int(userID)).
+		Scan(c)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado",
+		})
+		return
+	}
+
+	// Devolver información del usuario autenticado
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"nombre":   usuario.Nombre,
+			"apellido": usuario.Apellido,
+			"email":    email,
+			"ciudad":   usuario.Ciudad,
+			"celular":  usuario.Celular,
+			"rol":      rol,
+		},
+	})
+}
