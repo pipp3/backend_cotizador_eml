@@ -343,13 +343,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		})
 		return
 	}
+	secureCookie := true
+	if os.Getenv("ENVIRONMENT") == "development" {
+		secureCookie = false
+	}
 
 	// Configurar cookies seguras
+	c.SetSameSite(http.SameSiteNoneMode)
 	// Access Token (expira en 1 hora)
-	c.SetCookie("access_token", accessToken, 3600, "/", "localhost", false, true)
+	c.SetCookie("access_token", accessToken, 3600, "/", os.Getenv("COOKIE_DOMAIN"), secureCookie, true)
 
 	// Refresh Token (expira en 7 días)
-	c.SetCookie("refresh_token", refreshToken, 604800, "/", "localhost", false, true)
+	c.SetCookie("refresh_token", refreshToken, 604800, "/", os.Getenv("COOKIE_DOMAIN"), secureCookie, true)
 
 	// Respuesta sin incluir tokens directamente en el cuerpo
 	c.JSON(http.StatusOK, gin.H{
@@ -361,10 +366,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-
+	secureCookie := true
+	if os.Getenv("ENVIRONMENT") == "development" {
+		secureCookie = false
+	}
 	//Eliminar tokens de cookies
-	c.SetCookie("access_token", "", -1, "/", "localhost", false, true)
-	c.SetCookie("refresh_token", "", -1, "/", "localhost", false, true)
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("access_token", "", -1, "/", "localhost", secureCookie, true)
+	c.SetCookie("refresh_token", "", -1, "/", "localhost", secureCookie, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
