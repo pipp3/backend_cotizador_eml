@@ -27,4 +27,25 @@ go.work
 /tmp/
 # End of https://www.toptal.com/developers/gitignore/api/go
 
+# Archivos de entorno y configuración
 .env
+.env.*
+!.env.example
+
+# Archivos de logs
+*.log
+logs/
+
+# Directorios de build
+/build/
+/dist/
+/bin/
+
+# Archivos específicos de IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Archivos de caché
+.cache/
