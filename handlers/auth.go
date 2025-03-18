@@ -344,12 +344,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	secureCookie := true
+
+	sameSite := http.SameSiteNoneMode
 	if os.Getenv("ENVIRONMENT") == "development" {
 		secureCookie = false
+		sameSite = http.SameSiteLaxMode
 	}
-
 	// Configurar cookies seguras
-	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetSameSite(sameSite)
 	// Access Token (expira en 1 hora)
 	c.SetCookie("access_token", accessToken, 3600, "/", os.Getenv("COOKIE_DOMAIN"), secureCookie, true)
 
@@ -371,9 +373,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		secureCookie = false
 	}
 	//Eliminar tokens de cookies
-	c.SetSameSite(http.SameSiteNoneMode)
-	c.SetCookie("access_token", "", -1, "/", "localhost", secureCookie, true)
-	c.SetCookie("refresh_token", "", -1, "/", "localhost", secureCookie, true)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("access_token", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), secureCookie, true)
+	c.SetCookie("refresh_token", "", -1, "/", os.Getenv("COOKIE_DOMAIN"), secureCookie, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
