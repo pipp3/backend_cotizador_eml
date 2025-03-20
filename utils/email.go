@@ -54,7 +54,7 @@ func sendEmail(to, subject, htmlContent string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("error en la respuesta de Brevo: %s", resp.Status)
 	}
 
@@ -93,7 +93,7 @@ func SendPasswordResetEmail(to, token string) error {
 	if to == "" || token == "" {
 		return fmt.Errorf("parámetros inválidos: email o token vacío")
 	}
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", strings.TrimSuffix(frontendURL, "/"), token)
+	resetURL := fmt.Sprintf("%s/cambiar-password?token=%s", strings.TrimSuffix(frontendURL, "/"), token)
 
 	htmlContent := fmt.Sprintf(`
 	<!DOCTYPE html>
