@@ -56,6 +56,16 @@ func runMigrations(db *bun.DB) error {
 		return err
 	}
 
+	_, err = db.NewCreateTable().Model((*models.Pedido)(nil)).IfNotExists().Exec(context.Background())
+	if err != nil {
+		return err
+	}
+
+	_, err = db.NewCreateTable().Model((*models.DetallePedido)(nil)).IfNotExists().Exec(context.Background())
+	if err != nil {
+		return err
+	}
+
 	// Aquí se pueden agregar más migraciones si tienes más tablas o cambios
 	// También puedes usar migraciones más complejas si las tienes predefinidas en archivos SQL.
 

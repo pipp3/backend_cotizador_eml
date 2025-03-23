@@ -39,6 +39,7 @@ func main() {
 	routes.RegisterProductoRoutes(r, db)
 	routes.AuthRoutes(r, db)
 	routes.UserRoutes(r, db)
+	routes.OrderRoutes(r, db)
 
 	// Iniciar el servidor
 	if err := r.Run(":8000"); err != nil {
