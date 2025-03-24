@@ -14,10 +14,15 @@ func UserRoutes(router *gin.Engine, db *bun.DB) {
 	userRoutes.Use(utils.AuthMiddleware())
 	{
 		userRoutes.GET("/me", handler.Me)
-		userRoutes.POST("/create-user", handler.CreateUser)
-		userRoutes.PATCH("/update-user/:id", handler.UpdateUser)
-		userRoutes.GET("/get-users", handler.GetAllUsers)
-		userRoutes.GET("/get-user/:id", handler.GetUserByID)
-		userRoutes.DELETE("/delete-user/:id", handler.DeleteUser)
+	}
+	adminUserRoutes := router.Group("/user")
+	adminUserRoutes.Use(utils.AuthMiddleware())
+	adminUserRoutes.Use(utils.RoleMiddleware("admin"))
+	{
+		adminUserRoutes.GET("/get-users", handler.GetAllUsers)
+		adminUserRoutes.PATCH("/update-user/:id", handler.UpdateUser)
+		adminUserRoutes.DELETE("/delete-user/:id", handler.DeleteUser)
+		adminUserRoutes.POST("/create-user", handler.CreateUser)
+		adminUserRoutes.GET("/get-user/:id", handler.GetUserByID)
 	}
 }

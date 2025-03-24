@@ -20,10 +20,12 @@ func OrderRoutes(router *gin.Engine, db *bun.DB) {
 		orderRoutes.PATCH("/update-order-client", handler.UpdateOrderClient)
 	}
 
-	orderRoutes.Use(utils.AuthMiddleware())
-	orderRoutes.Use(utils.RoleMiddleware("admin"))
+	// Grupo de rutas protegidas con middleware de autenticación y rol de admin
+	adminOrderRoutes := router.Group("/orders")
+	adminOrderRoutes.Use(utils.AuthMiddleware())
+	adminOrderRoutes.Use(utils.RoleMiddleware("admin"))
 	{
-		orderRoutes.GET("/get-orders", handler.GetOrders)
-		orderRoutes.PATCH("/update-order-admin", handler.UpdateOrderAdmin)
+		adminOrderRoutes.GET("/get-orders", handler.GetOrders)
+		adminOrderRoutes.PATCH("/update-order-admin", handler.UpdateOrderAdmin)
 	}
 }

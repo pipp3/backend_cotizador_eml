@@ -224,3 +224,36 @@ func (h *ProductoHandler) GetProductoById(c *gin.Context) {
 		"data": productoFormateado,
 	})
 }
+
+// GetProductosForClientes devuelve una lista de productos con solo los campos relevantes para clientes
+func (h *ProductoHandler) GetProductosForClientes(c *gin.Context) {
+	var productos []models.Producto
+
+	// Consultar solo productos disponibles y ordenados por nombre
+	err := h.db.NewSelect().
+		Model(&productos).
+		Where("disponible = ?", true).
+		Order("nombre ASC").
+		Scan(c)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudieron obtener los productos"})
+		return
+	}
+
+	// Crear una lista de productos con solo los campos relevantes para clientes
+	var productosParaClientes []map[string]interface{}
+	for _, producto := range productos {
+		productoFormateado := map[string]interface{}{
+			"id":           producto.ID,
+			"nombre":       producto.Nombre,
+			"precio_venta": producto.PrecioVenta,
+			"disponible":   producto.Disponible,
+		}
+		productosParaClientes = append(productosParaClientes, productoFormateado)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": productosParaClientes,
+	})
+}
