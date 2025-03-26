@@ -128,40 +128,26 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	})
 
 }
-func (h *UserHandler) UpdateUser(c *gin.Context) {
-	// Verificar si el usuario autenticado tiene rol "admin"
-	userRole, exists := c.Get("rol")
-	if !exists || userRole != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   "Acceso denegado: se requiere rol de admin",
-		})
-		c.Abort()
-		return
-	}
 
-	// Obtener el ID del usuario a modificar desde los parámetros
-	userID := c.Param("id")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	// Obtener el ID del usuario autenticado
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error":   "Se requiere un ID de usuario",
+			"error":   "No autorizado",
 		})
 		return
 	}
 
-	// Definir la estructura de entrada
+	// Definir la estructura de entrada solo con campos permitidos
 	var input struct {
 		Nombre   *string `json:"nombre"`
 		Apellido *string `json:"apellido"`
-		Email    *string `json:"email"`
-		Password *string `json:"password"`
 		Ciudad   *string `json:"ciudad"`
 		Celular  *string `json:"celular"`
-		Rol      *string `json:"rol"` // Comentado temporalmente
 	}
 
-	// Validar el JSON de entrada
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -181,7 +167,99 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Actualizar solo los campos que se enviaron en la solicitud
+	// Actualizar solo los campos permitidos
+	if input.Nombre != nil {
+		user.Nombre = *input.Nombre
+	}
+	if input.Apellido != nil {
+		user.Apellido = *input.Apellido
+	}
+	if input.Ciudad != nil {
+		user.Ciudad = *input.Ciudad
+	}
+	if input.Celular != nil {
+		user.Celular = *input.Celular
+	}
+
+	// Guardar cambios en la base de datos
+	_, err = h.db.NewUpdate().Model(user).Where("id = ?", userID).Exec(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error al actualizar el perfil",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Perfil actualizado correctamente",
+	})
+}
+
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	// Verificar que sea admin
+	userRole, exists := c.Get("rol")
+	if !exists || userRole != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Acceso denegado: Se requieren privilegios de administrador",
+		})
+		return
+	}
+
+	// Obtener el ID del usuario a modificar
+	userID := c.Param("id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Se requiere un ID de usuario",
+		})
+		return
+	}
+
+	var input struct {
+		Nombre   *string `json:"nombre"`
+		Apellido *string `json:"apellido"`
+		Email    *string `json:"email"`
+		Ciudad   *string `json:"ciudad"`
+		Celular  *string `json:"celular"`
+		Rol      *string `json:"rol"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Datos de actualización inválidos: " + err.Error(),
+		})
+		return
+	}
+
+	// Buscar al usuario en la base de datos
+	user := new(models.Usuario)
+	err := h.db.NewSelect().Model(user).Where("id = ?", userID).Scan(c)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Usuario no encontrado",
+		})
+		return
+	}
+
+	// Verificar email único si se está actualizando
+	if input.Email != nil && *input.Email != user.Email {
+		existingUser := new(models.Usuario)
+		err := h.db.NewSelect().Model(existingUser).Where("email = ?", *input.Email).Scan(c)
+		if err == nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"success": false,
+				"error":   "El email ya está registrado",
+			})
+			return
+		}
+	}
+
+	// Actualizar todos los campos posibles
 	if input.Nombre != nil {
 		user.Nombre = *input.Nombre
 	}
@@ -191,24 +269,12 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	if input.Email != nil {
 		user.Email = *input.Email
 	}
-	if input.Password != nil {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   "Error al encriptar la contraseña",
-			})
-			return
-		}
-		user.Password = string(hashedPassword)
-	}
 	if input.Ciudad != nil {
 		user.Ciudad = *input.Ciudad
 	}
 	if input.Celular != nil {
 		user.Celular = *input.Celular
 	}
-
 	if input.Rol != nil {
 		user.Rol = *input.Rol
 	}
@@ -223,7 +289,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Responder con éxito
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Usuario actualizado correctamente",
@@ -241,14 +306,18 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 		return
 	}
 	var usuarios []struct {
-		ID       uint   `json:"id"`
-		Email    string `json:"email"`
-		Nombre   string `json:"nombre"`
-		Apellido string `json:"apellido"`
+		ID         uint   `json:"id"`
+		Email      string `json:"email"`
+		Nombre     string `json:"nombre"`
+		Apellido   string `json:"apellido"`
+		Ciudad     string `json:"ciudad"`
+		Celular    string `json:"celular"`
+		Rol        string `json:"rol"`
+		Verificado bool   `json:"verificado"`
 	}
 	err := h.db.NewSelect().
 		Model((*models.Usuario)(nil)).
-		Column("id", "email", "nombre", "apellido").
+		Column("id", "email", "nombre", "apellido", "ciudad", "celular", "rol", "verificado").
 		Scan(c, &usuarios)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

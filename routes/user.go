@@ -14,6 +14,7 @@ func UserRoutes(router *gin.Engine, db *bun.DB) {
 	userRoutes.Use(utils.AuthMiddleware())
 	{
 		userRoutes.GET("/me", handler.Me)
+		userRoutes.PATCH("/update-profile", handler.UpdateProfile)
 	}
 	adminUserRoutes := router.Group("/user")
 	adminUserRoutes.Use(utils.AuthMiddleware())
