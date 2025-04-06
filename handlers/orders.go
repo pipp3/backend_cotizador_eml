@@ -25,8 +25,8 @@ func NewOrderHandler(db *bun.DB) *OrderHandler {
 
 // CreateOrderRequest estructura para recibir la solicitud de creación de pedido
 type CreateOrderRequest struct {
-	CiudadDestino    string               `json:"ciudad_destino" binding:"required"`
-	DireccionDestino string               `json:"direccion_destino" binding:"required"`
+	CiudadDestino    string               `json:"ciudad_destino"`
+	DireccionDestino string               `json:"direccion_destino"`
 	RutDestinatario  string               `json:"rut_destinatario" binding:"required"`
 	Company          string               `json:"company"`
 	TipoEnvio        string               `json:"tipo_envio" binding:"required"`
@@ -95,6 +95,22 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Validar campos según el tipo de envío
+	if req.TipoEnvio == "estandar" {
+		if req.CiudadDestino == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "La ciudad de destino es requerida para envío estándar"})
+			return
+		}
+		if req.DireccionDestino == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "La dirección de destino es requerida para envío estándar"})
+			return
+		}
+		if req.Company == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "La compañía de envío es requerida para envío estándar"})
+			return
+		}
 	}
 
 	// Iniciar transacción
